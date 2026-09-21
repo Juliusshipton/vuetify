@@ -1,6 +1,7 @@
 // Composables
 import { getInterpolationMethod, isLinearColorScale } from './colorScale'
 import { usePivot } from './pivot'
+import { useDate } from '@/composables/date'
 
 // Utilities
 import { computed, shallowRef, toRef, toValue, watchEffect } from 'vue'
@@ -34,7 +35,10 @@ export interface HeatmapProps extends PivotProps {
   cellSize?: string | number | (string | number)[]
   gap?: string | number
   groupGap?: string | number
+  firstDayOfWeek?: number | string
 }
+
+const DAYS_IN_WEEK = 7
 
 function toPx (value: any, defaultValue: number): number {
   if (value == null || value === '') return defaultValue
@@ -59,6 +63,11 @@ interface LinearRange { fromMin: number, toMin: number }
 interface LinearColors { from: string, to: string, method: string }
 
 export function useHeatmap (props: HeatmapProps) {
+  const adapter = useDate()
+  const firstDayOfWeek = toRef(() => {
+    return adapter.toJsDate(adapter.startOfWeek(adapter.date(), props.firstDayOfWeek)).getDay()
+  })
+
   const bucketBoundaries = shallowRef<number[]>([])
   const bucketColors = shallowRef<string[]>([])
   const linearRange = shallowRef<LinearRange | null>(null)
@@ -115,6 +124,7 @@ export function useHeatmap (props: HeatmapProps) {
     hasExplicitColumns,
     groups: pivotGroups,
   } = usePivot<Record<string, any>, HeatmapCell>(props, {
+    rowOffset: rows => rows.length === DAYS_IN_WEEK ? firstDayOfWeek.value : 0,
     transformCell: cell => {
       const value = Number(cell.value) || 0
 

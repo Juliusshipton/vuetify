@@ -81,6 +81,7 @@ export const makeVHeatmapProps = propsFactory({
   emptyColor: String,
   rows: Array as PropType<any[]>,
   columns: Array as PropType<any[]>,
+  firstDayOfWeek: [Number, String],
   ...makeThemeProps(),
 }, 'VHeatmap')
 

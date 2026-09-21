@@ -41,6 +41,8 @@ export interface PivotProps<T = Record<string, any>> {
 
 export interface PivotOptions<T, C extends PivotCell<T>> {
   transformCell?: (cell: PivotCell<T>) => C
+  // Positions to rotate the row axis by when columns are inferred, so wrapping starts elsewhere
+  rowOffset?: (rows: any[]) => number
 }
 
 export function usePivot<
@@ -52,7 +54,7 @@ export function usePivot<
 ) {
   const transformCell = options.transformCell ?? ((cell: PivotCell<T>) => cell as unknown as C)
 
-  const rows = computed<any[]>(() => {
+  const naturalRows = computed<any[]>(() => {
     const rowsProp = toValue(props.rows)
     if (rowsProp) return [...rowsProp]
 
@@ -74,6 +76,14 @@ export function usePivot<
 
     const items = toValue(props.items)
     return items.some(item => getPropertyFromItem(item, itemColumn) != null)
+  })
+
+  const rows = computed<any[]>(() => {
+    const keys = naturalRows.value
+    if (!keys.length || hasExplicitColumns.value) return keys
+
+    const offset = (options.rowOffset?.(keys) ?? 0) % keys.length
+    return offset ? [...keys.slice(offset), ...keys.slice(0, offset)] : keys
   })
 
   // groups and rowItems are co-derived (pushToRow runs inline while columns build),
