@@ -22,3 +22,25 @@ issue and verify changes.
 
 ## Step 2 Repository Structure Map, Recreate Issue (Concurrent Prompts)
 
+One prompt on (Fable 5.1) to create the jshipton/REPO_ANALYSIS.md for a broad description of repo structure and .  
+
+One prompt on (Opus 5) to create the specific file jshipton/Playground.vue to recreate the issue.  
+
+These prompts were executed concurrently as they are separate concerns and also don't need the same model if token usage is a concern. 
+
+## Step 3 Implementation Plan & Failing Tests
+
+Conversation with (Fable 5.1) to establish the jshipton/IMPLEMENTATION_PLAN.md
+
+Failing tests written first in `packages/vuetify/src/labs/VHeatmap/__tests__/heatmap.spec.ts`
+(new `useHeatmap firstDayOfWeek` block). Expect 7 failed / 17 passed before implementation.
+
+The `test` script lives in `packages/vuetify/package.json`, so run from there
+(from `packages` or the root pnpm recurses into every package and fails):
+
+```bash
+cd packages/vuetify
+pnpm test src/labs/VHeatmap --project unit --run   # run once, jsdom only
+pnpm test src/labs/VHeatmap                        # watch mode, re-runs on save
+pnpm test src/labs/VHeatmap -t firstDayOfWeek      # only the new block
+```

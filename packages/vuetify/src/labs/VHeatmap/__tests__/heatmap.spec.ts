@@ -9,7 +9,7 @@ import { createVuetify } from '@/framework'
 // Types
 import type { HeatmapProps } from '../heatmap'
 
-function setup (props: Partial<HeatmapProps>) {
+function setup (props: Partial<HeatmapProps>, locale?: string) {
   const full: HeatmapProps = {
     items: [],
     itemValue: 'value',
@@ -19,6 +19,7 @@ function setup (props: Partial<HeatmapProps>) {
     rows: undefined,
     columns: undefined,
     thresholds: [],
+    firstDayOfWeek: undefined,
     ...props,
   }
   let result!: ReturnType<typeof useHeatmap>
@@ -28,7 +29,7 @@ function setup (props: Partial<HeatmapProps>) {
       return () => {}
     },
   }), {
-    global: { plugins: [createVuetify()] },
+    global: { plugins: [createVuetify(locale ? { locale: { locale } } : undefined)] },
   })
   return result
 }
@@ -276,6 +277,116 @@ describe('useHeatmap accessors', () => {
     expect(cols[0].cells[0]?.color).toBeUndefined()
     expect(cols[1].cells[0]?.color).toBe('#a')
     expect(cols[2].cells[0]?.color).toBe('#c')
+  })
+})
+
+describe('useHeatmap firstDayOfWeek', () => {
+  const week = [0, 1, 2, 3, 4, 5, 6]
+
+  it('orders rows from the first day of the week', () => {
+    const { rows } = setup({
+      rows: week,
+      firstDayOfWeek: 1,
+      items: [{ row: 0, value: 1 }],
+    })
+    expect(rows.value).toEqual([1, 2, 3, 4, 5, 6, 0])
+  })
+
+  it('starts a new column on the first day of the week', () => {
+    const { groups } = setup({
+      rows: week,
+      firstDayOfWeek: 1,
+      items: [
+        { row: 0, value: 1 },
+        { row: 1, value: 2 },
+        { row: 2, value: 3 },
+      ],
+    })
+    const cols = groups.value[0].columns
+    expect(cols).toHaveLength(2)
+    expect(cols[0].cells[6]?.value).toBe(1)
+    expect(cols[1].cells[0]?.value).toBe(2)
+    expect(cols[1].cells[1]?.value).toBe(3)
+  })
+
+  it('does not overlap a group that starts on the first day of the week', () => {
+    const { groups } = setup({
+      rows: week,
+      firstDayOfWeek: 1,
+      groupBy: 'month',
+      items: [
+        { month: 'Jan', row: 5, value: 1 },
+        { month: 'Jan', row: 6, value: 2 },
+        { month: 'Feb', row: 1, value: 3 },
+        { month: 'Feb', row: 2, value: 4 },
+      ],
+    })
+    const [, feb] = groups.value
+    expect(feb.columns[0].cells[0]?.value).toBe(3)
+    expect(feb.hasOverlap).toBe(false)
+  })
+
+  it('overlaps a group that starts on the last day of the week', () => {
+    const { groups } = setup({
+      rows: week,
+      firstDayOfWeek: 1,
+      groupBy: 'month',
+      items: [
+        { month: 'Jan', row: 5, value: 1 },
+        { month: 'Jan', row: 6, value: 2 },
+        { month: 'Feb', row: 0, value: 3 },
+        { month: 'Feb', row: 1, value: 4 },
+      ],
+    })
+    const [, feb] = groups.value
+    expect(feb.columns).toHaveLength(2)
+    expect(feb.columns[0].cells[6]?.value).toBe(3)
+    expect(feb.columns[1].cells[0]?.value).toBe(4)
+    expect(feb.hasOverlap).toBe(true)
+  })
+
+  it('accepts a string value', () => {
+    const { rows } = setup({
+      rows: week,
+      firstDayOfWeek: '1',
+      items: [{ row: 0, value: 1 }],
+    })
+    expect(rows.value).toEqual([1, 2, 3, 4, 5, 6, 0])
+  })
+
+  it('falls back to the locale week start when not set', () => {
+    const items = [{ row: 0, value: 1 }]
+    expect(setup({ rows: week, items }, 'de').rows.value).toEqual([1, 2, 3, 4, 5, 6, 0])
+    expect(setup({ rows: week, items }, 'en').rows.value).toEqual(week)
+  })
+
+  it('warns and falls back to Sunday for an invalid value', () => {
+    const { rows } = setup({
+      rows: week,
+      firstDayOfWeek: 'x',
+      items: [{ row: 0, value: 1 }],
+    })
+    expect(rows.value).toEqual(week)
+    expect('Invalid firstDayOfWeek').toHaveBeenTipped()
+  })
+
+  it('leaves rows alone unless there are seven of them', () => {
+    const { rows } = setup({
+      rows: [1, 2, 3, 4, 5],
+      firstDayOfWeek: 1,
+      items: [{ row: 1, value: 1 }],
+    })
+    expect(rows.value).toEqual([1, 2, 3, 4, 5])
+  })
+
+  it('leaves rows alone when columns are explicit', () => {
+    const { rows } = setup({
+      rows: week,
+      firstDayOfWeek: 1,
+      itemColumn: 'col',
+      items: [{ row: 0, col: 'X', value: 1 }],
+    })
+    expect(rows.value).toEqual(week)
   })
 })
 
